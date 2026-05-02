@@ -22,11 +22,11 @@ hcloud_server_username: hermes
 
 # Server timezone applied during first boot via cloud-init runcmd.
 # Timezone list reference: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
-hcloud_server_timezone: UTC
+hcloud_server_timezone: Europe/London
 
 # Public SSH key material added to the cloud-init login user.
 # Cloud-init SSH key reference: https://cloudinit.readthedocs.io/en/latest/reference/yaml_examples/ssh.html
-# Example source: "{{ lookup('url', 'https://github.com/<user>.keys').splitlines()[0] }}"
+# Example source: "{{ query('url', 'https://github.com/<user>.keys')[0] | trim }}"
 # The above example uses the first available SSH key from GitHub
 hcloud_ssh_public_key: "ssh-ed25519 replace-me"
 

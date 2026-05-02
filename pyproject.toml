@@ -6,6 +6,8 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
     "ansible-core>=2.19,<2.20",
+    "python-dateutil>=2.9.0.post0",
+    "requests>=2.33.1",
 ]
 
 [dependency-groups]

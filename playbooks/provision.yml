@@ -70,13 +70,13 @@
 
     - name: Show provisioning details
       ansible.builtin.debug:
-        msg: |-
-          🚀 Hetzner provisioning complete
-          🖥️ Server: {{ hcloud_server.hcloud_server.name }}
-          🌍 IPv4: {{ hcloud_server.hcloud_server.ipv4_address }}
-          📍 Location: {{ hcloud_server.hcloud_server.location }}
-          👤 Default user: {{ hcloud_server_username }}
-          🕒 Timezone: {{ hcloud_server_timezone }}
-          🔥 Firewall: {{ hcloud_firewall.hcloud_firewall.name }}
-          🌐 Controller IP: {{ hcloud_controller_public_ip }}
-          ✅ SSH allowlist: {{ hcloud_controller_ssh_cidr }}
+        msg:
+          - "🚀 Hetzner provisioning complete"
+          - "🖥️ Server: {{ hcloud_server.hcloud_server.name }}"
+          - "🌍 IPv4: {{ hcloud_server.hcloud_server.ipv4_address }}"
+          - "📍 Location: {{ hcloud_server.hcloud_server.location }}"
+          - "👤 Default user: {{ hcloud_server_username }}"
+          - "🕒 Timezone: {{ hcloud_server_timezone }}"
+          - "🔥 Firewall: {{ hcloud_firewall.hcloud_firewall.name }}"
+          - "🌐 Controller IP: {{ hcloud_controller_public_ip }}"
+          - "✅ SSH allowlist: {{ hcloud_controller_ssh_cidr }}"

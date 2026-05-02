@@ -1,0 +1,90 @@
+---
+- name: Provision Hetzner Cloud VPS | hermes-on-hetzner
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../vars/hetzner.yml
+  vars:
+    hcloud_api_token: "{{ lookup('ansible.builtin.env', 'HCLOUD_TOKEN') }}"
+  tasks:
+    - name: Validate required configuration
+      ansible.builtin.assert:
+        that:
+          - hcloud_api_token | length > 0
+          - hcloud_server_name | length > 0
+          - hcloud_server_type | length > 0
+          - hcloud_server_image | length > 0
+          - hcloud_server_location | length > 0
+          - hcloud_firewall_name | length > 0
+          - hcloud_ssh_key_name | length > 0
+          - hcloud_ssh_public_key | length > 0
+        fail_msg: >-
+          Set the HCLOUD_TOKEN environment variable and provide the required
+          values in vars/hetzner.yml.
+
+    - name: Resolve public IP
+      ansible.builtin.uri:
+        url: https://api.ipify.org?format=json
+        method: GET
+        return_content: true
+        status_code: 200
+      register: ipify_response
+
+    - name: Derive SSH allowlist CIDR from public IP
+      ansible.builtin.set_fact:
+        hcloud_controller_public_ip: >-
+          {{ (ipify_response.content | from_json).ip }}
+        hcloud_controller_ssh_cidr: >-
+          {{ ((ipify_response.content | from_json).ip) ~ '/32' }}
+
+    - name: Provision Hetzner firewall
+      hetzner.hcloud.firewall:
+        api_token: "{{ hcloud_api_token }}"
+        name: "{{ hcloud_firewall_name }}"
+        labels: "{{ hcloud_labels }}"
+        rules:
+          - description: Allow SSH from the current Ansible control host
+            direction: in
+            protocol: tcp
+            port: "22"
+            source_ips:
+              - "{{ hcloud_controller_ssh_cidr }}"
+        state: present
+      register: hcloud_firewall
+
+    - name: Provision Hetzner SSH key
+      hetzner.hcloud.ssh_key:
+        api_token: "{{ hcloud_api_token }}"
+        name: "{{ hcloud_ssh_key_name }}"
+        public_key: "{{ hcloud_ssh_public_key }}"
+        labels: "{{ hcloud_labels }}"
+        state: present
+      register: hcloud_ssh_key
+
+    - name: Provision Hetzner server
+      hetzner.hcloud.server:
+        api_token: "{{ hcloud_api_token }}"
+        name: "{{ hcloud_server_name }}"
+        server_type: "{{ hcloud_server_type }}"
+        image: "{{ hcloud_server_image }}"
+        location: "{{ hcloud_server_location }}"
+        labels: "{{ hcloud_labels }}"
+        firewalls:
+          - "{{ hcloud_firewall_name }}"
+        ssh_keys:
+          - "{{ hcloud_ssh_key_name }}"
+        state: present
+      register: hcloud_server
+
+    - name: Show provisioning details
+      ansible.builtin.debug:
+        msg: |-
+          🚀 Hetzner provisioning complete
+          🖥️ Server: {{ hcloud_server.hcloud_server.name }}
+          🌍 IPv4: {{ hcloud_server.hcloud_server.ipv4_address }}
+          📍 Location: {{ hcloud_server.hcloud_server.location }}
+          🔥 Firewall: {{ hcloud_firewall.hcloud_firewall.name }}
+          🔐 SSH key: {{ hcloud_ssh_key.hcloud_ssh_key.name }}
+          🌐 Controller IP: {{ hcloud_controller_public_ip }}
+          ✅ SSH allowlist: {{ hcloud_controller_ssh_cidr }}

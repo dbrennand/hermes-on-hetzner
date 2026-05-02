@@ -40,3 +40,7 @@ The SSH public key is injected directly into that non-root user via cloud-init i
 export HCLOUD_TOKEN="Your Token"
 uv run ansible-playbook playbook.yml
 ```
+
+## AI Attribution
+
+AIA HAb SeCeNc Hin R Codex (gpt-5.4) v1.0

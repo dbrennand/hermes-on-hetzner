@@ -1,3 +1,6 @@
 ---
-- name: Run Hermes on Hetzner provisioning
+- name: Run Hermes on Hetzner workflow
   ansible.builtin.import_playbook: playbooks/provision.yml
+
+- name: Run Hermes Agent deployment
+  ansible.builtin.import_playbook: playbooks/hermes-deploy.yml

@@ -26,7 +26,8 @@ hcloud_server_timezone: UTC
 
 # Public SSH key material added to the cloud-init login user.
 # Cloud-init SSH key reference: https://cloudinit.readthedocs.io/en/latest/reference/yaml_examples/ssh.html
-# Example source: https://github.com/<user>.keys
+# Example source: "{{ lookup('url', 'https://github.com/<user>.keys').splitlines()[0] }}"
+# The above example uses the first available SSH key from GitHub
 hcloud_ssh_public_key: "ssh-ed25519 replace-me"
 
 # Cloud-init user_data passed to the Hetzner server during provisioning.

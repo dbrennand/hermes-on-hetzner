@@ -16,8 +16,9 @@
           - hcloud_server_type | length > 0
           - hcloud_server_image | length > 0
           - hcloud_server_location | length > 0
+          - hcloud_server_username | length > 0
+          - hcloud_server_timezone | length > 0
           - hcloud_firewall_name | length > 0
-          - hcloud_ssh_key_name | length > 0
           - hcloud_ssh_public_key | length > 0
         fail_msg: >-
           Set the HCLOUD_TOKEN environment variable and provide the required
@@ -53,15 +54,6 @@
         state: present
       register: hcloud_firewall
 
-    - name: Provision Hetzner SSH key
-      hetzner.hcloud.ssh_key:
-        api_token: "{{ hcloud_api_token }}"
-        name: "{{ hcloud_ssh_key_name }}"
-        public_key: "{{ hcloud_ssh_public_key }}"
-        labels: "{{ hcloud_labels }}"
-        state: present
-      register: hcloud_ssh_key
-
     - name: Provision Hetzner server
       hetzner.hcloud.server:
         api_token: "{{ hcloud_api_token }}"
@@ -72,8 +64,7 @@
         labels: "{{ hcloud_labels }}"
         firewalls:
           - "{{ hcloud_firewall_name }}"
-        ssh_keys:
-          - "{{ hcloud_ssh_key_name }}"
+        user_data: "{{ hcloud_server_user_data }}"
         state: present
       register: hcloud_server
 
@@ -84,7 +75,8 @@
           🖥️ Server: {{ hcloud_server.hcloud_server.name }}
           🌍 IPv4: {{ hcloud_server.hcloud_server.ipv4_address }}
           📍 Location: {{ hcloud_server.hcloud_server.location }}
+          👤 Default user: {{ hcloud_server_username }}
+          🕒 Timezone: {{ hcloud_server_timezone }}
           🔥 Firewall: {{ hcloud_firewall.hcloud_firewall.name }}
-          🔐 SSH key: {{ hcloud_ssh_key.hcloud_ssh_key.name }}
           🌐 Controller IP: {{ hcloud_controller_public_ip }}
           ✅ SSH allowlist: {{ hcloud_controller_ssh_cidr }}

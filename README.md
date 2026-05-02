@@ -24,10 +24,12 @@ uv run ansible-galaxy collection install -r collections/requirements.yml -p ./co
 
 ## ⚙️ Configuration
 
-Edit [`vars/hetzner.yml`](vars/hetzner.yml) and set the server details and your SSH public key.
+Edit [`vars/hetzner.yml`](vars/hetzner.yml) and set the server details, bootstrap username, timezone, and your SSH public key.
 
 The playbook resolves your current public IP at runtime using [ipify](https://www.ipify.org/) and uses it
 to create a firewall rule allowing SSH on port 22 only from that IP as `/32`.
+It also uses cloud-init `user_data` to create the default sudo user, disable password SSH auth, disable root login, update packages, upgrade packages, and set the server timezone.
+The SSH public key is injected directly into that non-root user via cloud-init instead of creating a separate Hetzner SSH key resource.
 
 ## ☁️ Provision
 

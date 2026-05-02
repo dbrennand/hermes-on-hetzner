@@ -1,0 +1,14 @@
+[project]
+name = "hermes-on-hetzner"
+version = "0.1.0"
+description = "Provision Hermes Agent on Hetzner Cloud with Ansible"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "ansible-core>=2.19,<2.20",
+]
+
+[dependency-groups]
+dev = [
+    "ansible-lint>=26.4.0",
+]

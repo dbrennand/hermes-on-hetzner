@@ -24,6 +24,11 @@ hcloud_server_username: hermes
 # Timezone list reference: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 hcloud_server_timezone: UTC
 
+# Public SSH key material added to the cloud-init login user.
+# Cloud-init SSH key reference: https://cloudinit.readthedocs.io/en/latest/reference/yaml_examples/ssh.html
+# Example source: https://github.com/<user>.keys
+hcloud_ssh_public_key: "ssh-ed25519 replace-me"
+
 # Cloud-init user_data passed to the Hetzner server during provisioning.
 # Cloud-init format reference: https://cloudinit.readthedocs.io/en/latest/reference/examples.html
 hcloud_server_user_data: |
@@ -46,11 +51,6 @@ hcloud_server_user_data: |
 # Firewall resource name managed for SSH access.
 # Firewall module reference: https://docs.ansible.com/projects/ansible/latest/collections/hetzner/hcloud/firewall_module.html
 hcloud_firewall_name: hermes-agent-firewall
-
-# Public SSH key material added to the cloud-init login user.
-# Cloud-init SSH key reference: https://cloudinit.readthedocs.io/en/latest/reference/yaml_examples/ssh.html
-# Example source: https://github.com/<user>.keys
-hcloud_ssh_public_key: "ssh-ed25519 replace-me"
 
 # Labels applied to Hetzner resources created by this project.
 # Label behavior is supported by the Hetzner resource modules referenced above.

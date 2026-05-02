@@ -107,8 +107,20 @@
       become: true
       ansible.builtin.get_url:
         url: "{{ hermes_node_apt_key_url }}"
-        dest: "{{ hermes_node_apt_keyring }}"
+        dest: /tmp/nodesource-repo.gpg.key
         mode: "0644"
+
+    - name: Dearmor NodeSource APT signing key
+      become: true
+      changed_when: false
+      ansible.builtin.command:
+        argv:
+          - gpg
+          - --dearmor
+          - --yes
+          - --output
+          - "{{ hermes_node_apt_keyring }}"
+          - /tmp/nodesource-repo.gpg.key
 
     - name: Configure NodeSource APT repository
       become: true
@@ -136,39 +148,27 @@
         state: directory
         mode: "0755"
 
-    - name: Create temporary file for uv installer
-      ansible.builtin.tempfile:
-        state: file
-        suffix: -uv-install.sh
-      register: hermes_uv_installer_file
-
     - name: Download uv installer
       ansible.builtin.get_url:
         url: "{{ hermes_uv_installer_url }}"
-        dest: "{{ hermes_uv_installer_file.path }}"
+        dest: /tmp/uv-install.sh
         mode: "0755"
 
     - name: Install uv
       ansible.builtin.command:
         argv:
           - /bin/bash
-          - "{{ hermes_uv_installer_file.path }}"
+          - /tmp/uv-install.sh
       args:
         creates: "{{ hermes_local_bin_dir }}/uv"
       environment:
         HOME: "{{ ansible_env.HOME }}"
         PATH: "{{ hermes_local_bin_dir }}:{{ ansible_env.PATH }}"
 
-    - name: Create temporary file for Hermes installer
-      ansible.builtin.tempfile:
-        state: file
-        suffix: -hermes-install.sh
-      register: hermes_installer_file
-
     - name: Download Hermes installer
       ansible.builtin.get_url:
         url: "{{ hermes_upstream_installer_url }}"
-        dest: "{{ hermes_installer_file.path }}"
+        dest: /tmp/hermes-install.sh
         mode: "0755"
 
     - name: Install extra system packages
@@ -182,7 +182,7 @@
       ansible.builtin.command:
         argv:
           - /bin/bash
-          - "{{ hermes_installer_file.path }}"
+          - /tmp/hermes-install.sh
           - --skip-setup
           - --branch
           - "{{ hermes_install_branch }}"
@@ -240,13 +240,13 @@
 
     - name: Show Hermes deployment details
       ansible.builtin.debug:
-        msg: |-
-          🤖 Hermes deployment complete
-          🖥️ Server: {{ hcloud_server_name }}
-          🌍 IPv4: {{ ansible_host }}
-          👤 SSH user: {{ hcloud_server_username }}
-          🏠 Hermes home: {{ hermes_home }}
-          🌿 Install branch: {{ hermes_install_branch }}
-          🔧 .env block managed: {{ hermes_env_block | length > 0 }}
-          🧠 SOUL.md managed: {{ hermes_soul_content | length > 0 }}
-          ✅ Version: {{ hermes_version.stdout }}
+        msg:
+          - "🤖 Hermes deployment complete"
+          - "🖥️ Server: {{ hcloud_server_name }}"
+          - "🌍 IPv4: {{ ansible_host }}"
+          - "👤 SSH user: {{ hcloud_server_username }}"
+          - "🏠 Hermes home: {{ hermes_home }}"
+          - "🌿 Install branch: {{ hermes_install_branch }}"
+          - "🔧 .env block managed: {{ hermes_env_block | length > 0 }}"
+          - "🧠 SOUL.md managed: {{ hermes_soul_content | length > 0 }}"
+          - "✅ Version: {{ hermes_version.stdout }}"

@@ -1,6 +1,6 @@
 # Hermes on Hetzner
 
-🚀 Provision a Hetzner Cloud VPS for [Hermes Agent](https://hermes-agent.nousresearch.com/docs) with Ansible.
+🚀 Provision a Hetzner Cloud VPS for [Hermes Agent](https://hermes-agent.nousresearch.com/docs) with Ansible, then deploy Hermes onto it.
 
 ## 📋 Requirements
 
@@ -24,21 +24,39 @@
 
 ## ⚙️ Configuration
 
-Edit [`vars/hetzner.yml`](vars/hetzner.yml) and set the server details, bootstrap username, timezone, and your SSH public key.
+### Hetzner variables
 
-The playbook resolves your current public IP at runtime using [ipify](https://www.ipify.org/) and uses it
-to create a firewall rule allowing SSH on port 22 only from that IP as `/32`.
-It also uses cloud-init `user_data` to create the default sudo user, disable password SSH auth, disable root login, update packages, upgrade packages, and set the server timezone.
-The SSH public key is injected directly into that non-root user via cloud-init instead of creating a separate Hetzner SSH key resource.
+- Edit [`vars/hetzner.yml`](vars/hetzner.yml) to set the server details, bootstrap username, timezone, and SSH public key.
 
 > [!NOTE]
 > The Hetzner `user_data` payload is only applied when the server is created or rebuilt. Changing `hcloud_server_username`, `hcloud_server_timezone`, `hcloud_ssh_public_key`, or other variables inside `hcloud_server_user_data` will not update an already existing server on a normal rerun.
 
-## ☁️ Provision
+### Hermes variables
+
+- Edit [`vars/hermes.yml`](vars/hermes.yml) to set the Hermes branch and any optional runtime configuration you want Ansible to manage.
+- `hermes_install_branch` controls which upstream Hermes branch the installer uses.
+- `hermes_extra_system_packages` lets you install extra Ubuntu packages before Hermes is installed.
+- `hermes_env_block` lets Ansible manage a marked block inside `~/.hermes/.env` for your own `KEY=value` settings while leaving any content outside that block untouched.
+- `hermes_soul_content` lets Ansible template `~/.hermes/SOUL.md` when you want to define Hermes's primary identity from this repo. If it is empty, the playbook leaves any existing `SOUL.md` alone.
+
+## 📘 Playbooks
+
+- [`playbook.yml`](playbook.yml) is the full workflow entrypoint. It provisions the Hetzner VPS first and then deploys Hermes Agent onto it.
+- [`playbooks/provision.yml`](playbooks/provision.yml) provisions the Hetzner infrastructure. It resolves your current public IP with [ipify](https://www.ipify.org/), creates the SSH firewall rule for port `22`, and creates the VPS with `cloud-init` `user_data` to bootstrap the non-root sudo user, disable password SSH auth, disable root login, update and upgrade packages, and set the server timezone.
+- [`playbooks/hermes-deploy.yml`](playbooks/hermes-deploy.yml) deploys Hermes Agent onto an existing provisioned VPS. It waits for SSH login as the configured user, installs the required system dependencies with Ansible tasks, downloads the upstream Hermes installer as a file, executes it with `--skip-setup` using the Ansible `command` module, and optionally manages `~/.hermes/.env` and `~/.hermes/SOUL.md`.
+
+## ☁️ Run The Full Workflow
 
 ```sh
 export HCLOUD_TOKEN="Your Token"
 uv run ansible-playbook playbook.yml
+```
+
+## 🔧 Run Individual Playbooks
+
+```sh
+uv run ansible-playbook playbooks/provision.yml
+uv run ansible-playbook playbooks/hermes-deploy.yml
 ```
 
 ## AI Attribution

@@ -1,0 +1,35 @@
+---
+# vars file for hermes-on-hetzner
+# Hetzner Cloud server name to create or manage.
+hcloud_server_name: hermes-agent
+
+# Hetzner server type, kept configurable for sizing changes.
+# Options and pricing: https://docs.hetzner.com/cloud/servers/overview/
+hcloud_server_type: cx23
+
+# Base image used when the server is created.
+# OS families are documented at: https://docs.hetzner.com/cloud/servers/overview/
+# Module parameter details: https://docs.ansible.com/projects/ansible/latest/collections/hetzner/hcloud/server_module.html
+hcloud_server_image: ubuntu-24.04
+
+# Hetzner location where the server will be provisioned.
+# Available locations: https://docs.hetzner.com/cloud/general/locations/
+hcloud_server_location: fsn1
+
+# Firewall resource name managed for SSH access.
+# Firewall module reference: https://docs.ansible.com/projects/ansible/latest/collections/hetzner/hcloud/firewall_module.html
+hcloud_firewall_name: hermes-agent-firewall
+
+# Hetzner Cloud SSH key resource name.
+# SSH key module reference: https://docs.ansible.com/projects/ansible/latest/collections/hetzner/hcloud/ssh_key_module.html
+hcloud_ssh_key_name: hermes-agent
+
+# Public SSH key material uploaded to Hetzner and attached to the server.
+# SSH key module reference: https://docs.ansible.com/projects/ansible/latest/collections/hetzner/hcloud/ssh_key_module.html
+hcloud_ssh_public_key: "ssh-ed25519 replace-me"
+
+# Labels applied to Hetzner resources created by this project.
+# Label behavior is supported by the Hetzner resource modules referenced above.
+hcloud_labels:
+  project: hermes-on-hetzner
+  managed_by: ansible

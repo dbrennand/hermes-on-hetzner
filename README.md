@@ -2,57 +2,83 @@
 
 🚀 Provision a Hetzner Cloud VPS for [Hermes Agent](https://hermes-agent.nousresearch.com/docs) with Ansible, then deploy Hermes onto it.
 
+## ⚡ Quick Start
+
+
+Install `uv` with Homebrew:
+
+```sh
+brew install uv
+```
+
+Clone the project, sync the environment, and install the required Ansible collections:
+
+```sh
+git clone https://github.com/dbrennand/hermes-on-hetzner.git
+cd hermes-on-hetzner
+uv sync
+uv run ansible-galaxy collection install -r collections/requirements.yml -p ./collections
+```
+
+Export your Hetzner Cloud API token and run the full workflow:
+
+> [!TIP]
+> Need a Hetzner Cloud API token? Follow Hetzner's guide for [generating an API token](https://docs.hetzner.com/cloud/api/getting-started/generating-api-token/).
+
+```sh
+export HCLOUD_TOKEN="your-token"
+uv run ansible-playbook playbook.yml
+```
+
 ## 📋 Requirements
 
 - [`uv`](https://docs.astral.sh/uv/)
 - Python 3.13
 - A Hetzner Cloud API token exported as `HCLOUD_TOKEN`
 
-## 🛠️ Setup
-
-1. Setup the Python environment:
-
-    ```sh
-    uv sync
-    ```
-
-2. Install the required Ansible collection:
-
-    ```sh
-    uv run ansible-galaxy collection install -r collections/requirements.yml -p ./collections
-    ```
-
 ## ⚙️ Configuration
 
 ### Hetzner variables
 
-- Edit [`vars/hetzner.yml`](vars/hetzner.yml) to set the server details, bootstrap username, timezone, and SSH public key.
+Edit [`vars/hetzner.yml`](vars/hetzner.yml) to set the Hetzner Cloud VPS details, bootstrap username, timezone, and SSH public key.
 
 > [!NOTE]
 > The Hetzner `user_data` payload is only applied when the server is created or rebuilt. Changing `hcloud_server_username`, `hcloud_server_timezone`, `hcloud_ssh_public_key`, or other variables inside `hcloud_server_user_data` will not update an already existing server on a normal rerun.
 
 ### Hermes variables
 
-- Edit [`vars/hermes.yml`](vars/hermes.yml) to set the Hermes branch and any optional runtime configuration you want Ansible to manage.
-- `hermes_install_branch` controls which upstream Hermes branch the installer uses.
-- `hermes_extra_system_packages` lets you install extra Ubuntu packages before Hermes is installed.
-- `hermes_env_block` lets Ansible manage a marked block inside `~/.hermes/.env` for your own `KEY=value` settings while leaving any content outside that block untouched.
-- `hermes_soul_content` lets Ansible template `~/.hermes/SOUL.md` when you want to define Hermes's primary identity from this repo. If it is empty, the playbook leaves any existing `SOUL.md` alone.
+Edit [`vars/hermes.yml`](vars/hermes.yml) to configure the Hermes Agent version, uv version, extra OS packages and other settings.
+
+| Variable                    | Purpose                                                                                                                                                                                                                                                                                         |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hermes_agent_env_block`    | Manages a marked block inside `~/.hermes/.env` for your own `KEY=value` settings, such as API keys, model configuration, or other runtime overrides that should be applied during deployment. Leave it empty if you want Hermes Agent to use its existing or default environment configuration. |
+| `hermes_agent_soul_content` | Manages the contents of `~/.hermes/SOUL.md` when you want to define Hermes Agent's identity, behavior, or operating instructions from this repo. Leave it empty if you want Hermes Agent to use the default behavior or keep any existing `SOUL.md` unchanged.                                  |
 
 ## 📘 Playbooks
 
-- [`playbook.yml`](playbook.yml) is the full workflow entrypoint. It provisions the Hetzner VPS first and then deploys Hermes Agent onto it.
-- [`playbooks/hetzner-deploy.yml`](playbooks/hetzner-deploy.yml) provisions the Hetzner infrastructure. It resolves your current public IP with [ipify](https://www.ipify.org/), creates the SSH firewall rule for port `22`, and creates the VPS with `cloud-init` `user_data` to bootstrap the non-root sudo user, disable password SSH auth, disable root login, update and upgrade packages, and set the server timezone.
-- [`playbooks/hermes-agent-deploy.yml`](playbooks/hermes-agent-deploy.yml) deploys Hermes Agent onto an existing provisioned VPS. It waits for SSH login as the configured user, installs the required system dependencies with Ansible tasks, downloads the upstream Hermes installer as a file, executes it with `--skip-setup` using the Ansible `command` module, and optionally manages `~/.hermes/.env` and `~/.hermes/SOUL.md`.
+### [`playbook.yml`](playbook.yml)
 
-## ☁️ Run The Full Workflow
+This playbook triggers the playbooks below in sequence.
 
-```sh
-export HCLOUD_TOKEN="Your Token"
-uv run ansible-playbook playbook.yml
-```
+### [`playbooks/hetzner-deploy.yml`](playbooks/hetzner-deploy.yml)
 
-## 🔧 Run Individual Playbooks
+This playbook deploys a Hetzner Cloud VPS.
+
+At a high level it performs the following steps:
+
+- Resolves your current public IP with [ipify](https://www.ipify.org/) and creates the SSH firewall rule for port `22`.
+- Creates the VPS with `cloud-init` `user_data` to bootstrap the non-root sudo user, disable password SSH auth, disable root login, update and upgrade packages, and set the server timezone.
+
+### [`playbooks/hermes-agent-deploy.yml`](playbooks/hermes-agent-deploy.yml)
+
+This playbook deploys Hermes Agent onto the Hetzner Cloud VPS.
+
+At a high level it performs the following steps:
+
+- Waits for SSH login as the configured user and installs the required system dependencies with Ansible tasks.
+- Downloads the upstream Hermes installer as a file, executes it with `--skip-setup` using the Ansible `command` module, and optionally manages `~/.hermes/.env` and `~/.hermes/SOUL.md`.
+
+### 🔧 Run Individual Playbooks
 
 ```sh
 uv run ansible-playbook playbooks/hetzner-deploy.yml

@@ -74,12 +74,13 @@ At a high level it performs the following steps:
 
 ### [`playbooks/hermes-agent-deploy.yml`](playbooks/hermes-agent-deploy.yml)
 
-This playbook deploys Hermes Agent onto the Hetzner Cloud VPS.
+This playbook deploys Hermes Agent onto the Hetzner Cloud VPS and can install optional extra tooling for Hermes Agent to use.
 
 At a high level it performs the following steps:
 
 - Waits for SSH login as the configured user and installs the required system dependencies with Ansible tasks.
 - Downloads the upstream Hermes installer as a file, executes it with `--skip-setup` using the Ansible `command` module, and optionally manages `~/.hermes/.env` and `~/.hermes/SOUL.md`.
+- Installs any enabled packages from `hermes_agent_npm_packages`, such as `@googleworkspace/cli`, with the `community.general.npm` module.
 
 ### 🔧 Run Individual Playbooks
 

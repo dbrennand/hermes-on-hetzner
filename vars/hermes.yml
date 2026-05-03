@@ -1,0 +1,82 @@
+---
+# vars file for hermes-on-hetzner
+# Hermes Git branch or tag to install with the upstream installer.
+# This also controls which upstream installer script version is downloaded.
+# Upstream installer usage: https://github.com/NousResearch/hermes-agent/blob/main/scripts/install.sh
+hermes_agent_install_branch: v2026.4.30
+
+# Base Ubuntu packages installed before the Hermes installer runs.
+# These cover Git, build tooling, ffmpeg, ripgrep, and deb822 repo support.
+hermes_agent_system_packages:
+  - build-essential
+  - ca-certificates
+  - curl
+  - ffmpeg
+  - git
+  - gnupg
+  - ripgrep
+
+# Extra Ubuntu system packages to install before running the Hermes installer.
+# Package names should follow the Ubuntu APT repository naming.
+hermes_agent_extra_system_packages: []
+
+# NodeSource APT signing key URL used for the Node.js 22 repository.
+hermes_agent_node_apt_key_url: https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key
+
+# NodeSource keyring path on the remote host.
+hermes_agent_node_apt_keyring: /etc/apt/keyrings/nodesource.gpg
+
+# NodeSource APT repository used to install Node.js 22.
+hermes_agent_node_apt_repo: https://deb.nodesource.com/node_22.x
+
+# uv version installed from the pinned GitHub release.
+# https://github.com/astral-sh/uv/releases/
+hermes_agent_uv_version: "0.11.8"
+
+# Base URL for uv GitHub release assets.
+hermes_agent_uv_release_base_url: https://github.com/astral-sh/uv/releases/download
+
+# Mapping from Ansible architecture names to uv Linux GNU release targets.
+hermes_agent_uv_linux_gnu_targets:
+  x86_64: x86_64-unknown-linux-gnu
+  aarch64: aarch64-unknown-linux-gnu
+
+# Upstream Hermes installer URL downloaded and executed with --skip-setup.
+# This follows the configured Hermes install branch/tag.
+hermes_agent_upstream_installer_url: "https://raw.githubusercontent.com/NousRes\
+  earch/hermes-agent/{{ hermes_agent_install_branch }}/scripts/install.sh"
+
+# Optional managed block appended to ~/.hermes/.env.
+# Use literal KEY=value lines when you want Ansible to manage part of the file.
+# Hermes environment variable reference: https://hermes-agent.nousresearch.com/docs/reference/environment-variables
+# Example:
+# hermes_agent_env_block: |
+#   OPENROUTER_API_KEY=sk-or-v1-...
+#   DEFAULT_MODEL=openrouter/openai/gpt-4.1
+hermes_agent_env_block: ""
+
+# Optional managed content for ~/.hermes/SOUL.md.
+# This sets Hermes's primary identity when defined.
+# SOUL.md behavior: https://github.com/NousResearch/hermes-agent/blob/main/website/docs/user-guide/configuration.md
+# Example:
+# hermes_agent_soul_content: |
+#   You are Hermes, my remote research and automation agent.
+#   Be concise, verify important facts, and prefer safe changes.
+#   Ask for clarification before making irreversible decisions.
+hermes_agent_soul_content: ""
+
+# Optional npm packages installed for Hermes Agent to use.
+# Set enabled: true to install a package, and pin the version you want installed.
+hermes_agent_npm_packages:
+  - name: "@googleworkspace/cli"
+    enabled: false
+    version: "0.22.5"
+
+# Optional agent skills installed for Hermes Agent to use.
+# Define a list of objects with a required SKILL.md URL and optional custom name.
+# Only install skills you trust, because they can extend Hermes with additional behavior and tooling.
+# Example:
+# hermes_agent_custom_skills:
+#   - url: https://raw.githubusercontent.com/googleworkspace/cli/refs/heads/main/skills/gws-calendar/SKILL.md
+#     name: gws-calendar
+hermes_agent_custom_skills: []

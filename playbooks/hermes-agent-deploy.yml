@@ -1,0 +1,423 @@
+---
+- name: Deploy Hermes Agent | hermes-on-hetzner
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../vars/hetzner.yml
+  vars:
+    hcloud_api_token: "{{ lookup('ansible.builtin.env', 'HCLOUD_TOKEN') }}"
+  tasks:
+    - name: Validate required deployment configuration
+      ansible.builtin.assert:
+        that:
+          - hcloud_api_token | length > 0
+          - hcloud_server_name | length > 0
+          - hcloud_server_username | length > 0
+        fail_msg: >-
+          Set the HCLOUD_TOKEN environment variable and provide the required
+          values in vars/hetzner.yml.
+
+    - name: Look up Hetzner server details
+      hetzner.hcloud.server_info:
+        api_token: "{{ hcloud_api_token }}"
+        name: "{{ hcloud_server_name }}"
+      register: hcloud_server_info
+
+    - name: Validate Hetzner server lookup result
+      ansible.builtin.assert:
+        that:
+          - hcloud_server_info.hcloud_server_info | length > 0
+        fail_msg: >-
+          No Hetzner server named {{ hcloud_server_name }} was found. Provision
+          the server first or verify vars/hetzner.yml.
+
+    - name: Derive deployment target address
+      ansible.builtin.set_fact:
+        hermes_agent_target_ipv4: >-
+          {{ hcloud_server_info.hcloud_server_info[0].ipv4_address }}
+
+    - name: Wait for SSH port on the Hetzner server
+      ansible.builtin.wait_for:
+        host: "{{ hermes_agent_target_ipv4 }}"
+        port: 22
+        delay: 5
+        timeout: 300
+
+    - name: Add Hetzner server to in memory inventory
+      ansible.builtin.add_host:
+        name: hermes_target
+        groups: hermes_target
+        ansible_host: "{{ hermes_agent_target_ipv4 }}"
+        ansible_user: "{{ hcloud_server_username }}"
+
+- name: Install & Configure Hermes Agent | hermes-on-hetzner
+  hosts: hermes_target
+  gather_facts: false
+  vars_files:
+    - ../vars/hetzner.yml
+    - ../vars/hermes.yml
+  pre_tasks:
+    - name: Wait until the configured SSH user can log in
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 300
+
+    - name: Validate required Hermes Agent deployment variables
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_install_branch | length > 0
+          - hermes_agent_system_packages | length > 0
+          - hermes_agent_node_apt_key_url | length > 0
+          - hermes_agent_node_apt_keyring | length > 0
+          - hermes_agent_node_apt_repo | length > 0
+          - hermes_agent_uv_version | length > 0
+          - hermes_agent_uv_release_base_url | length > 0
+          - hermes_agent_uv_linux_gnu_targets | length > 0
+          - hermes_agent_upstream_installer_url | length > 0
+        fail_msg: >-
+          Provide the required values in vars/hermes.yml before running the
+          Hermes Agent deployment playbook.
+
+    - name: Validate Hermes Agent npm package variables
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_npm_packages is iterable
+        fail_msg: >-
+          Provide hermes_agent_npm_packages as a list of package definitions in
+          vars/hermes.yml.
+
+    - name: Validate Hermes Agent npm package definitions
+      ansible.builtin.assert:
+        that:
+          - item.name | default('') | length > 0
+          - item.enabled is boolean
+          - item.version | default('') | length > 0
+        fail_msg: >-
+          Each Hermes Agent npm package must define a package name, boolean
+          enabled flag, and version.
+      loop: "{{ hermes_agent_npm_packages }}"
+      loop_control:
+        label: "{{ item.name | default('unnamed') }}"
+
+    - name: Validate Hermes Agent custom skill variables
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_custom_skills is iterable
+        fail_msg: >-
+          Provide hermes_agent_custom_skills as a list of skill definitions in
+          vars/hermes.yml.
+
+    - name: Validate Hermes Agent custom skill definitions
+      ansible.builtin.assert:
+        that:
+          - item is mapping
+          - item.url | default('') | length > 0
+          - (item.name is not defined) or (item.name | string | length > 0)
+        fail_msg: >-
+          Each Hermes Agent custom skill must define a url pointing to a
+          SKILL.md file and may optionally define a non-empty name.
+      loop: "{{ hermes_agent_custom_skills }}"
+      loop_control:
+        label: "{{ item.name | default(item.url | default('unnamed')) }}"
+
+    - name: Gather remote facts
+      ansible.builtin.setup:
+
+    - name: Derive Hermes Agent paths
+      ansible.builtin.set_fact:
+        hermes_agent_home: "{{ ansible_facts['env']['HOME'] }}/.hermes"
+        hermes_agent_env_file: "{{ ansible_facts['env']['HOME'] }}/.hermes/.env"
+        hermes_agent_soul_file: "{{ ansible_facts['env']['HOME'] }}/.hermes/SOUL.md"
+        hermes_agent_local_bin_dir: "{{ ansible_facts['env']['HOME'] }}/.local/bin"
+        hermes_agent_command_path: "{{ ansible_facts['env']['HOME'] }}/.local/bin/hermes"
+
+    - name: Derive uv release facts
+      ansible.builtin.set_fact:
+        hermes_agent_uv_target: >-
+          {{
+          hermes_agent_uv_linux_gnu_targets.get(ansible_facts['architecture'],
+          '') }}
+
+    - name: Validate uv release target support
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_uv_target | length > 0
+        fail_msg: >-
+          No uv Linux GNU release target is configured for architecture {{
+          ansible_facts['architecture'] }}. Update
+          hermes_agent_uv_linux_gnu_targets in vars/hermes.yml.
+
+    - name: Derive uv release asset URLs
+      ansible.builtin.set_fact:
+        hermes_agent_uv_archive_name: "uv-{{ hermes_agent_uv_target }}.tar.gz"
+        hermes_agent_uv_archive_url: >-
+          {{ hermes_agent_uv_release_base_url }}/{{ hermes_agent_uv_version
+          }}/uv-{{ hermes_agent_uv_target }}.tar.gz
+        hermes_agent_uv_checksum_url: >-
+          {{ hermes_agent_uv_release_base_url }}/{{ hermes_agent_uv_version
+          }}/uv-{{ hermes_agent_uv_target }}.tar.gz.sha256
+        hermes_agent_uv_archive_path: "/tmp/uv-{{ hermes_agent_uv_target }}.tar.gz"
+
+    - name: Derive enabled Hermes Agent npm package definitions
+      ansible.builtin.set_fact:
+        hermes_agent_enabled_npm_packages: >-
+          {{ hermes_agent_npm_packages | selectattr('enabled', 'equalto', true)
+          | list }}
+
+  tasks:
+    - name: Ensure APT keyring directory exists
+      become: true
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Install Hermes Agent system package prerequisites
+      become: true
+      ansible.builtin.apt:
+        name: "{{ hermes_agent_system_packages }}"
+        state: present
+        update_cache: true
+
+    - name: Download NodeSource APT signing key
+      become: true
+      ansible.builtin.get_url:
+        url: "{{ hermes_agent_node_apt_key_url }}"
+        dest: /tmp/nodesource-repo.gpg.key
+        mode: "0644"
+
+    - name: Dearmor NodeSource APT signing key
+      become: true
+      changed_when: false
+      ansible.builtin.command:
+        argv:
+          - gpg
+          - --dearmor
+          - --yes
+          - --output
+          - "{{ hermes_agent_node_apt_keyring }}"
+          - /tmp/nodesource-repo.gpg.key
+
+    - name: Configure NodeSource APT repository
+      become: true
+      ansible.builtin.deb822_repository:
+        name: nodesource
+        types:
+          - deb
+        uris: "{{ hermes_agent_node_apt_repo }}"
+        suites: nodistro
+        components:
+          - main
+        signed_by: "{{ hermes_agent_node_apt_keyring }}"
+        state: present
+
+    - name: Install Node.js
+      become: true
+      ansible.builtin.apt:
+        name: nodejs
+        state: present
+        update_cache: true
+
+    - name: Ensure local bin directory exists
+      ansible.builtin.file:
+        path: "{{ hermes_agent_local_bin_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Check installed uv binary
+      ansible.builtin.stat:
+        path: "{{ hermes_agent_local_bin_dir }}/uv"
+      register: hermes_agent_uv_binary_stat
+
+    - name: Read installed uv version
+      ansible.builtin.command:
+        argv:
+          - "{{ hermes_agent_local_bin_dir }}/uv"
+          - --version
+      environment:
+        HOME: "{{ ansible_facts['env']['HOME'] }}"
+        PATH: "{{ hermes_agent_local_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
+      register: hermes_agent_uv_version_command
+      changed_when: false
+      when: hermes_agent_uv_binary_stat.stat.exists
+
+    - name: Derive uv installed version
+      ansible.builtin.set_fact:
+        hermes_agent_uv_version_stdout: >-
+          {{ hermes_agent_uv_version_command.stdout | default('') | trim }}
+        hermes_agent_uv_installed_version: >-
+          {{ (hermes_agent_uv_version_command.stdout | default('') | trim |
+          regex_replace('^uv ', '') | split(' ')) | first | default('') }}
+
+    - name: Derive whether uv installation is needed
+      ansible.builtin.set_fact:
+        hermes_agent_uv_needs_install: >-
+          {{ (not hermes_agent_uv_binary_stat.stat.exists) or
+             (hermes_agent_uv_installed_version !=
+             (hermes_agent_uv_version | string)) }}
+
+    - name: Show uv installation debug details
+      ansible.builtin.debug:
+        msg:
+          - "uv --version stdout: {{ hermes_agent_uv_version_stdout }}"
+          - "Derived uv version: {{ hermes_agent_uv_installed_version }}"
+          - "uv installation needed: {{ hermes_agent_uv_needs_install }}"
+        verbosity: 2
+
+    - name: Install uv from pinned GitHub release
+      when: hermes_agent_uv_needs_install
+      block:
+        - name: Download uv release archive with checksum verification
+          ansible.builtin.get_url:
+            url: "{{ hermes_agent_uv_archive_url }}"
+            dest: "{{ hermes_agent_uv_archive_path }}"
+            checksum: "sha256:{{ hermes_agent_uv_checksum_url }}"
+            mode: "0644"
+
+        - name: Extract uv release archive
+          ansible.builtin.unarchive:
+            src: "{{ hermes_agent_uv_archive_path }}"
+            dest: "{{ hermes_agent_local_bin_dir }}"
+            remote_src: true
+
+        - name: Remove downloaded uv release archive
+          ansible.builtin.file:
+            path: "{{ hermes_agent_uv_archive_path }}"
+            state: absent
+
+    - name: Download Hermes Agent installer
+      ansible.builtin.get_url:
+        url: "{{ hermes_agent_upstream_installer_url }}"
+        dest: /tmp/hermes-install.sh
+        mode: "0755"
+
+    - name: Install extra system packages
+      become: true
+      ansible.builtin.apt:
+        name: "{{ hermes_agent_extra_system_packages }}"
+        state: present
+      when: hermes_agent_extra_system_packages | length > 0
+
+    - name: Check whether a reboot is required
+      become: true
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: hermes_agent_reboot_required
+
+    - name: Reboot the host if required
+      become: true
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+      when: hermes_agent_reboot_required.stat.exists
+
+    - name: Install Hermes Agent
+      ansible.builtin.command:
+        argv:
+          - /bin/bash
+          - /tmp/hermes-install.sh
+          - --skip-setup
+          - --branch
+          - "{{ hermes_agent_install_branch }}"
+      args:
+        creates: "{{ hermes_agent_command_path }}"
+      environment:
+        HOME: "{{ ansible_facts['env']['HOME'] }}"
+        PATH: "{{ hermes_agent_local_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
+
+    - name: Ensure Hermes Agent home directory exists
+      ansible.builtin.file:
+        path: "{{ hermes_agent_home }}"
+        state: directory
+        mode: "0700"
+
+    - name: Manage Hermes Agent environment block
+      ansible.builtin.blockinfile:
+        path: "{{ hermes_agent_env_file }}"
+        create: true
+        mode: "0600"
+        marker: "# {mark} ANSIBLE MANAGED HERMES ENV"
+        block: "{{ hermes_agent_env_block }}"
+      when: hermes_agent_env_block | length > 0
+
+    - name: Template Hermes Agent SOUL.md
+      ansible.builtin.copy:
+        dest: "{{ hermes_agent_soul_file }}"
+        mode: "0644"
+        content: "{{ hermes_agent_soul_content }}"
+      when: hermes_agent_soul_content | length > 0
+
+    - name: Verify Hermes Agent command path exists
+      ansible.builtin.stat:
+        path: "{{ hermes_agent_command_path }}"
+      register: hermes_agent_command_stat
+
+    - name: Validate Hermes Agent command installation
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_command_stat.stat.exists
+        fail_msg: >-
+          Hermes was not installed at {{ hermes_agent_command_path }}. Check the
+          instructions at
+          https://hermes-agent.nousresearch.com/docs/getting-started/installation#troubleshooting
+
+    - name: Show Hermes Agent version
+      ansible.builtin.command:
+        argv:
+          - "{{ hermes_agent_command_path }}"
+          - version
+      environment:
+        HOME: "{{ ansible_facts['env']['HOME'] }}"
+        PATH: "{{ hermes_agent_local_bin_dir }}:{{ ansible_facts['env']['PATH'] }}"
+      register: hermes_agent_version
+      changed_when: false
+
+    - name: Show Hermes Agent deployment details
+      ansible.builtin.debug:
+        msg:
+          - "🤖 Hermes deployment complete"
+          - "🖥️ Server: {{ hcloud_server_name }}"
+          - "🌍 IPv4: {{ ansible_host }}"
+          - "👤 SSH user: {{ hcloud_server_username }}"
+          - "🏠 Hermes home: {{ hermes_agent_home }}"
+          - "🌿 Install branch: {{ hermes_agent_install_branch }}"
+          - "🔧 .env block managed: {{ hermes_agent_env_block | length > 0 }}"
+          - "🧠 SOUL.md managed: {{ hermes_agent_soul_content | length > 0 }}"
+          - "✅ Version: {{ hermes_agent_version.stdout }}"
+  post_tasks:
+    - name: Install Hermes Agent npm tooling
+      become: true
+      community.general.npm:
+        name: "{{ item.name }}"
+        version: "{{ item.version }}"
+        global: true
+        production: true
+        state: present
+      loop: "{{ hermes_agent_enabled_npm_packages }}"
+      loop_control:
+        label: "{{ item.name }}@{{ item.version }}"
+      when: hermes_agent_enabled_npm_packages | length > 0
+
+    - name: Install Hermes Agent custom skills
+      changed_when: false
+      ansible.builtin.command:
+        argv: >-
+          {{
+            [
+              hermes_agent_command_path,
+              'skills',
+              'install',
+              item.url,
+              '--force',
+              '--yes'
+            ] + (
+              ['--name', item.name]
+              if item.name is defined and item.name | string | length > 0
+              else []
+            )
+          }}
+      environment:
+        HOME: "{{ ansible_facts['env']['HOME'] }}"
+      loop: "{{ hermes_agent_custom_skills }}"
+      loop_control:
+        label: "{{ item.name | default(item.url) }}"

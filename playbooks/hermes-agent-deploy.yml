@@ -337,7 +337,7 @@
           - "🧠 SOUL.md managed: {{ hermes_agent_soul_content | length > 0 }}"
           - "✅ Version: {{ hermes_agent_version.stdout }}"
 
-- name: Install Hermes Agent tooling | hermes-on-hetzner
+- name: Install Hermes Agent Extras | hermes-on-hetzner
   hosts: hermes_target
   gather_facts: false
   vars_files:
@@ -370,6 +370,27 @@
           {{ hermes_agent_npm_packages | selectattr('enabled', 'equalto', true)
           | list }}
 
+    - name: Validate Hermes Agent custom skill variables
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_custom_skills is iterable
+        fail_msg: >-
+          Provide hermes_agent_custom_skills as a list of skill definitions in
+          vars/hermes.yml.
+
+    - name: Validate Hermes Agent custom skill definitions
+      ansible.builtin.assert:
+        that:
+          - item is mapping
+          - item.url | default('') | length > 0
+          - (item.name is not defined) or (item.name | string | length > 0)
+        fail_msg: >-
+          Each Hermes Agent custom skill must define a url pointing to a
+          SKILL.md file and may optionally define a non-empty name.
+      loop: "{{ hermes_agent_custom_skills }}"
+      loop_control:
+        label: "{{ item.name | default(item.url | default('unnamed')) }}"
+
   tasks:
     - name: Install Hermes Agent npm tooling
       become: true
@@ -383,3 +404,14 @@
       loop_control:
         label: "{{ item.name }}@{{ item.version }}"
       when: hermes_agent_enabled_npm_packages | length > 0
+
+    - name: Install Hermes Agent custom skills
+      changed_when: false
+      ansible.builtin.command:
+        cmd: >-
+          hermes skills install {{ item.url | quote }}{% if item.name is defined
+          and item.name | string | length > 0 %} --name {{ item.name | quote
+          }}{% endif %}
+      loop: "{{ hermes_agent_custom_skills }}"
+      loop_control:
+        label: "{{ item.name | default(item.url) }}"

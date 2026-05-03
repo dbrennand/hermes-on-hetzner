@@ -22,7 +22,7 @@ uv sync
 uv run ansible-galaxy collection install -r collections/requirements.yml -p ./collections
 ```
 
-Export your Hetzner Cloud API token and run the full workflow:
+Edit [`vars/hetzner.yml`](vars/hetzner.yml) and [`vars/hermes.yml`](vars/hermes.yml) for your target server and Hermes configuration, then export your Hetzner Cloud API token and run the full workflow:
 
 > [!TIP]
 > Need a Hetzner Cloud API token? Follow Hetzner's guide for [generating an API token](https://docs.hetzner.com/cloud/api/getting-started/generating-api-token/).
@@ -51,11 +51,12 @@ Edit [`vars/hetzner.yml`](vars/hetzner.yml) to set the Hetzner Cloud VPS details
 
 Edit [`vars/hermes.yml`](vars/hermes.yml) to configure the Hermes Agent version, uv version, extra OS packages and other settings.
 
-| Variable                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hermes_agent_env_block`    | Manages a marked block inside `~/.hermes/.env` for your own `KEY=value` settings, such as API keys, model configuration, or other runtime overrides that should be applied during deployment. If this contains sensitive values, encrypt them with `ansible-vault` or another secret-management mechanism instead of storing them in plaintext. Leave it empty if you want Hermes Agent to use its existing or default environment configuration. |
-| `hermes_agent_npm_packages` | Controls optional npm packages installed for Hermes Agent to use. Define a list of package objects with `name`, `enabled`, and `version`, for example `@googleworkspace/cli` at `0.22.5`. Set `enabled: true` to install a package, or leave entries disabled if you do not want them installed.                                                                                                                                                  |
-| `hermes_agent_soul_content` | Manages the contents of `~/.hermes/SOUL.md` when you want to define Hermes Agent's identity, behavior, or operating instructions from this repo. Leave it empty if you want Hermes Agent to use the default behavior or keep any existing `SOUL.md` unchanged.                                                                                                                                                                                    |
+| Variable                     | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hermes_agent_custom_skills` | Controls optional Hermes skills installed with `hermes skills install`. Define a list of objects with a required `url` pointing to a raw `SKILL.md` file and an optional `name` to install the skill under a custom name. Leave it empty if you do not want Ansible to install any custom skills.                                                                                                                                              |
+| `hermes_agent_env_block`     | Manages a marked block inside `~/.hermes/.env` for your own `KEY=value` settings, such as API keys, model configuration, or other runtime overrides that should be applied during deployment. If this contains sensitive values, encrypt them with `ansible-vault` or another secret-management mechanism instead of storing them in plaintext. Leave it empty if you want Hermes Agent to use its existing or default environment configuration. |
+| `hermes_agent_npm_packages`  | Controls optional npm packages installed for Hermes Agent to use. Define a list of package objects with `name`, `enabled`, and `version`, for example `@googleworkspace/cli` at `0.22.5`. Set `enabled: true` to install a package, or leave entries disabled if you do not want them installed.                                                                                                                                                  |
+| `hermes_agent_soul_content`  | Manages the contents of `~/.hermes/SOUL.md` when you want to define Hermes Agent's identity, behavior, or operating instructions from this repo. Leave it empty if you want Hermes Agent to use the default behavior or keep any existing `SOUL.md` unchanged.                                                                                                                                                                                    |
 
 ## 📘 Playbooks
 
@@ -74,13 +75,14 @@ At a high level it performs the following steps:
 
 ### [`playbooks/hermes-agent-deploy.yml`](playbooks/hermes-agent-deploy.yml)
 
-This playbook deploys Hermes Agent onto the Hetzner Cloud VPS and can install optional extra tooling for Hermes Agent to use.
+This playbook deploys Hermes Agent onto the Hetzner Cloud VPS and can install optional extra tooling and skills for Hermes Agent to use.
 
 At a high level it performs the following steps:
 
 - Waits for SSH login as the configured user and installs the required system dependencies with Ansible tasks.
 - Downloads the upstream Hermes installer as a file, executes it with `--skip-setup` using the Ansible `command` module, and optionally manages `~/.hermes/.env` and `~/.hermes/SOUL.md`.
 - Installs any enabled packages from `hermes_agent_npm_packages`, such as `@googleworkspace/cli`, with the `community.general.npm` module.
+- Installs any entries listed in `hermes_agent_custom_skills` with `hermes skills install <url>` and appends `--name <name>` when a custom skill name is provided.
 
 ### 🔧 Run Individual Playbooks
 

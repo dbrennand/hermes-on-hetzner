@@ -251,6 +251,18 @@
         state: present
       when: hermes_agent_extra_system_packages | length > 0
 
+    - name: Check whether a reboot is required
+      become: true
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: hermes_agent_reboot_required
+
+    - name: Reboot the host if required
+      become: true
+      ansible.builtin.reboot:
+        reboot_timeout: 600
+      when: hermes_agent_reboot_required.stat.exists
+
     - name: Install Hermes Agent
       ansible.builtin.command:
         argv:

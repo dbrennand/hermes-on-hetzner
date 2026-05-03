@@ -32,6 +32,8 @@ export HCLOUD_TOKEN="your-token"
 uv run ansible-playbook playbook.yml
 ```
 
+Once the playbook finishes, SSH to the Hetzner Cloud VPS and continue with Step 2, "Choose a Provider", in the [Hermes Quickstart](https://hermes-agent.nousresearch.com/docs/getting-started/quickstart#2-choose-a-provider).
+
 ## 📋 Requirements
 
 - [`uv`](https://docs.astral.sh/uv/)

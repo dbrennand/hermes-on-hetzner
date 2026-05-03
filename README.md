@@ -43,7 +43,7 @@
 
 - [`playbook.yml`](playbook.yml) is the full workflow entrypoint. It provisions the Hetzner VPS first and then deploys Hermes Agent onto it.
 - [`playbooks/hetzner-deploy.yml`](playbooks/hetzner-deploy.yml) provisions the Hetzner infrastructure. It resolves your current public IP with [ipify](https://www.ipify.org/), creates the SSH firewall rule for port `22`, and creates the VPS with `cloud-init` `user_data` to bootstrap the non-root sudo user, disable password SSH auth, disable root login, update and upgrade packages, and set the server timezone.
-- [`playbooks/hermes-deploy.yml`](playbooks/hermes-deploy.yml) deploys Hermes Agent onto an existing provisioned VPS. It waits for SSH login as the configured user, installs the required system dependencies with Ansible tasks, downloads the upstream Hermes installer as a file, executes it with `--skip-setup` using the Ansible `command` module, and optionally manages `~/.hermes/.env` and `~/.hermes/SOUL.md`.
+- [`playbooks/hermes-agent-deploy.yml`](playbooks/hermes-agent-deploy.yml) deploys Hermes Agent onto an existing provisioned VPS. It waits for SSH login as the configured user, installs the required system dependencies with Ansible tasks, downloads the upstream Hermes installer as a file, executes it with `--skip-setup` using the Ansible `command` module, and optionally manages `~/.hermes/.env` and `~/.hermes/SOUL.md`.
 
 ## ☁️ Run The Full Workflow
 
@@ -56,7 +56,7 @@ uv run ansible-playbook playbook.yml
 
 ```sh
 uv run ansible-playbook playbooks/hetzner-deploy.yml
-uv run ansible-playbook playbooks/hermes-deploy.yml
+uv run ansible-playbook playbooks/hermes-agent-deploy.yml
 ```
 
 ## AI Attribution

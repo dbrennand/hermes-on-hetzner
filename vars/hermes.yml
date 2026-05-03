@@ -71,3 +71,11 @@ hermes_agent_npm_packages:
   - name: "@googleworkspace/cli"
     enabled: false
     version: "0.22.5"
+
+# Optional agent skills installed for Hermes Agent to use.
+# Define a list of objects with a required SKILL.md URL and optional custom name.
+# Example:
+# hermes_agent_custom_skills:
+#   - url: https://raw.githubusercontent.com/googleworkspace/cli/refs/heads/main/skills/gws-calendar/SKILL.md
+#     name: gws-calendar
+hermes_agent_custom_skills: []

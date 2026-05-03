@@ -2,6 +2,8 @@
 
 🚀 Provision a Hetzner Cloud VPS for [Hermes Agent](https://hermes-agent.nousresearch.com/docs) with Ansible, then deploy Hermes onto it.
 
+Feel free to fork this project and adapt it to your own infrastructure, Hermes Agent configuration, and operational preferences.
+
 ## ⚡ Quick Start
 
 
@@ -49,10 +51,10 @@ Edit [`vars/hetzner.yml`](vars/hetzner.yml) to set the Hetzner Cloud VPS details
 
 Edit [`vars/hermes.yml`](vars/hermes.yml) to configure the Hermes Agent version, uv version, extra OS packages and other settings.
 
-| Variable                    | Purpose                                                                                                                                                                                                                                                                                         |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hermes_agent_env_block`    | Manages a marked block inside `~/.hermes/.env` for your own `KEY=value` settings, such as API keys, model configuration, or other runtime overrides that should be applied during deployment. Leave it empty if you want Hermes Agent to use its existing or default environment configuration. |
-| `hermes_agent_soul_content` | Manages the contents of `~/.hermes/SOUL.md` when you want to define Hermes Agent's identity, behavior, or operating instructions from this repo. Leave it empty if you want Hermes Agent to use the default behavior or keep any existing `SOUL.md` unchanged.                                  |
+| Variable                    | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hermes_agent_env_block`    | Manages a marked block inside `~/.hermes/.env` for your own `KEY=value` settings, such as API keys, model configuration, or other runtime overrides that should be applied during deployment. If this contains sensitive values, encrypt them with `ansible-vault` or another secret-management mechanism instead of storing them in plaintext. Leave it empty if you want Hermes Agent to use its existing or default environment configuration. |
+| `hermes_agent_soul_content` | Manages the contents of `~/.hermes/SOUL.md` when you want to define Hermes Agent's identity, behavior, or operating instructions from this repo. Leave it empty if you want Hermes Agent to use the default behavior or keep any existing `SOUL.md` unchanged.                                                                                                                                                                                    |
 
 ## 📘 Playbooks
 

@@ -3,4 +3,4 @@
   ansible.builtin.import_playbook: playbooks/hetzner-deploy.yml
 
 - name: Run Hermes Agent deployment
-  ansible.builtin.import_playbook: playbooks/hermes-deploy.yml
+  ansible.builtin.import_playbook: playbooks/hermes-agent-deploy.yml

@@ -74,6 +74,7 @@ hermes_agent_npm_packages:
 
 # Optional agent skills installed for Hermes Agent to use.
 # Define a list of objects with a required SKILL.md URL and optional custom name.
+# Only install skills you trust, because they can extend Hermes with additional behavior and tooling.
 # Example:
 # hermes_agent_custom_skills:
 #   - url: https://raw.githubusercontent.com/googleworkspace/cli/refs/heads/main/skills/gws-calendar/SKILL.md

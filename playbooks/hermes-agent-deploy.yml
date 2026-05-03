@@ -51,7 +51,7 @@
         ansible_host: "{{ hermes_agent_target_ipv4 }}"
         ansible_user: "{{ hcloud_server_username }}"
 
-- name: Install Hermes Agent | hermes-on-hetzner
+- name: Install & Configure Hermes Agent | hermes-on-hetzner
   hosts: hermes_target
   gather_facts: false
   vars_files:
@@ -78,6 +78,48 @@
         fail_msg: >-
           Provide the required values in vars/hermes.yml before running the
           Hermes Agent deployment playbook.
+
+    - name: Validate Hermes Agent npm package variables
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_npm_packages is iterable
+        fail_msg: >-
+          Provide hermes_agent_npm_packages as a list of package definitions in
+          vars/hermes.yml.
+
+    - name: Validate Hermes Agent npm package definitions
+      ansible.builtin.assert:
+        that:
+          - item.name | default('') | length > 0
+          - item.enabled is boolean
+          - item.version | default('') | length > 0
+        fail_msg: >-
+          Each Hermes Agent npm package must define a package name, boolean
+          enabled flag, and version.
+      loop: "{{ hermes_agent_npm_packages }}"
+      loop_control:
+        label: "{{ item.name | default('unnamed') }}"
+
+    - name: Validate Hermes Agent custom skill variables
+      ansible.builtin.assert:
+        that:
+          - hermes_agent_custom_skills is iterable
+        fail_msg: >-
+          Provide hermes_agent_custom_skills as a list of skill definitions in
+          vars/hermes.yml.
+
+    - name: Validate Hermes Agent custom skill definitions
+      ansible.builtin.assert:
+        that:
+          - item is mapping
+          - item.url | default('') | length > 0
+          - (item.name is not defined) or (item.name | string | length > 0)
+        fail_msg: >-
+          Each Hermes Agent custom skill must define a url pointing to a
+          SKILL.md file and may optionally define a non-empty name.
+      loop: "{{ hermes_agent_custom_skills }}"
+      loop_control:
+        label: "{{ item.name | default(item.url | default('unnamed')) }}"
 
     - name: Gather remote facts
       ansible.builtin.setup:
@@ -116,6 +158,12 @@
           {{ hermes_agent_uv_release_base_url }}/{{ hermes_agent_uv_version
           }}/uv-{{ hermes_agent_uv_target }}.tar.gz.sha256
         hermes_agent_uv_archive_path: "/tmp/uv-{{ hermes_agent_uv_target }}.tar.gz"
+
+    - name: Derive enabled Hermes Agent npm package definitions
+      ansible.builtin.set_fact:
+        hermes_agent_enabled_npm_packages: >-
+          {{ hermes_agent_npm_packages | selectattr('enabled', 'equalto', true)
+          | list }}
 
   tasks:
     - name: Ensure APT keyring directory exists
@@ -336,62 +384,7 @@
           - "🔧 .env block managed: {{ hermes_agent_env_block | length > 0 }}"
           - "🧠 SOUL.md managed: {{ hermes_agent_soul_content | length > 0 }}"
           - "✅ Version: {{ hermes_agent_version.stdout }}"
-
-- name: Install Hermes Agent Extras | hermes-on-hetzner
-  hosts: hermes_target
-  gather_facts: false
-  vars_files:
-    - ../vars/hermes.yml
-  pre_tasks:
-    - name: Validate Hermes Agent npm package variables
-      ansible.builtin.assert:
-        that:
-          - hermes_agent_npm_packages is iterable
-        fail_msg: >-
-          Provide hermes_agent_npm_packages as a list of package definitions in
-          vars/hermes.yml.
-
-    - name: Validate Hermes Agent npm package definitions
-      ansible.builtin.assert:
-        that:
-          - item.name | default('') | length > 0
-          - item.enabled is boolean
-          - item.version | default('') | length > 0
-        fail_msg: >-
-          Each Hermes Agent npm package must define a package name, boolean
-          enabled flag, and version.
-      loop: "{{ hermes_agent_npm_packages }}"
-      loop_control:
-        label: "{{ item.name | default('unnamed') }}"
-
-    - name: Derive enabled Hermes Agent npm package definitions
-      ansible.builtin.set_fact:
-        hermes_agent_enabled_npm_packages: >-
-          {{ hermes_agent_npm_packages | selectattr('enabled', 'equalto', true)
-          | list }}
-
-    - name: Validate Hermes Agent custom skill variables
-      ansible.builtin.assert:
-        that:
-          - hermes_agent_custom_skills is iterable
-        fail_msg: >-
-          Provide hermes_agent_custom_skills as a list of skill definitions in
-          vars/hermes.yml.
-
-    - name: Validate Hermes Agent custom skill definitions
-      ansible.builtin.assert:
-        that:
-          - item is mapping
-          - item.url | default('') | length > 0
-          - (item.name is not defined) or (item.name | string | length > 0)
-        fail_msg: >-
-          Each Hermes Agent custom skill must define a url pointing to a
-          SKILL.md file and may optionally define a non-empty name.
-      loop: "{{ hermes_agent_custom_skills }}"
-      loop_control:
-        label: "{{ item.name | default(item.url | default('unnamed')) }}"
-
-  tasks:
+  post_tasks:
     - name: Install Hermes Agent npm tooling
       become: true
       community.general.npm:
@@ -408,10 +401,23 @@
     - name: Install Hermes Agent custom skills
       changed_when: false
       ansible.builtin.command:
-        cmd: >-
-          hermes skills install {{ item.url | quote }}{% if item.name is defined
-          and item.name | string | length > 0 %} --name {{ item.name | quote
-          }}{% endif %}
+        argv: >-
+          {{
+            [
+              hermes_agent_command_path,
+              'skills',
+              'install',
+              item.url,
+              '--force',
+              '--yes'
+            ] + (
+              ['--name', item.name]
+              if item.name is defined and item.name | string | length > 0
+              else []
+            )
+          }}
+      environment:
+        HOME: "{{ ansible_facts['env']['HOME'] }}"
       loop: "{{ hermes_agent_custom_skills }}"
       loop_control:
         label: "{{ item.name | default(item.url) }}"

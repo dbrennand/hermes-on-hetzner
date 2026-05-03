@@ -43,8 +43,8 @@ hermes_agent_uv_linux_gnu_targets:
 
 # Upstream Hermes installer URL downloaded and executed with --skip-setup.
 # This follows the configured Hermes install branch/tag.
-hermes_agent_upstream_installer_url: "https://raw.githubusercontent.com/NousResearch/\
-  hermes-agent/{{ hermes_agent_install_branch }}/scripts/install.sh"
+hermes_agent_upstream_installer_url: "https://raw.githubusercontent.com/NousRes\
+  earch/hermes-agent/{{ hermes_agent_install_branch }}/scripts/install.sh"
 
 # Optional managed block appended to ~/.hermes/.env.
 # Use literal KEY=value lines when you want Ansible to manage part of the file.
@@ -64,3 +64,10 @@ hermes_agent_env_block: ""
 #   Be concise, verify important facts, and prefer safe changes.
 #   Ask for clarification before making irreversible decisions.
 hermes_agent_soul_content: ""
+
+# Optional npm packages installed for Hermes Agent to use.
+# Set enabled: true to install a package, and pin the version you want installed.
+hermes_agent_npm_packages:
+  - name: "@googleworkspace/cli"
+    enabled: false
+    version: "0.22.5"
